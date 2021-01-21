@@ -5,8 +5,10 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.RecyclerView
 import com.programmersbox.dragswipe.DragSwipeAdapter
+import com.programmersbox.helpfulutils.animateChildren
 import com.programmersbox.helpfulutils.layoutInflater
 import com.programmersbox.philipshuetest.databinding.ActivityMainBinding
 import com.programmersbox.philipshuetest.databinding.LightItemBinding
@@ -39,7 +41,7 @@ class MainActivity : AppCompatActivity() {
         GlobalScope.launch {
             hueService.getLights().execute().body()
                 .also { println(it?.entries?.joinToString("\n")) }
-                ?.let { runOnUiThread { adapter.addItems(it.toList()) } }
+                ?.let { runOnUiThread { adapter.setListNotify(it.toList()) } }
                 .also { runOnUiThread { binding.refreshLights.isRefreshing = false } }
         }
     }
@@ -55,6 +57,16 @@ class LightAdapter(private val context: Context, private val hueService: HueServ
 class LightHolder(private val binding: LightItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
     fun loadLight(light: Pair<String, Light>, hueService: HueService) {
+
+        binding.light = light.second
+
+        val constraint = ConstraintSet()
+        constraint.clone(binding.lightInfoCard)
+        val constraintInfo = ConstraintSet()
+        constraintInfo.clone(binding.root.context, R.layout.light_item_more_info)
+
+        var info = false
+
         binding.toggleOnOff.setOnCheckedChangeListener { _, isChecked ->
             GlobalScope.launch { hueService.turnOn(light.first.toInt(), BridgeLightRequestBody(isChecked)) }
         }
@@ -68,10 +80,22 @@ class LightHolder(private val binding: LightItemBinding) : RecyclerView.ViewHold
                 }
             }
         }
-        binding.toggleOnOff.isChecked = light.second.state?.on ?: false
-        binding.lightName.text = light.second.name
+        //binding.toggleOnOff.isChecked = light.second.state?.on ?: false
+        //binding.lightName.text = light.second.name
         binding.lightBrightness.value = light.second.state?.bri?.toFloat()?.times(100)?.div(254) ?: 0f
         binding.lightBrightness.setLabelFormatter { "${it.roundToInt()}%" }
+        //binding.lightModel.text = light.second.modelid
+
+        binding.moreInfoCard.setOnClickListener {
+            binding.lightInfoCard.animateChildren {
+                if (info) {
+                    constraint.applyTo(binding.lightInfoCard)
+                } else {
+                    constraintInfo.applyTo(binding.lightInfoCard)
+                }
+                info = !info
+            }
+        }
     }
 
 }

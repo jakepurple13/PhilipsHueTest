@@ -9,7 +9,7 @@ import retrofit2.create
 import retrofit2.http.*
 
 object HueFit {
-    private const val baseUrl = "http://192.168.1.78/api//"
+    private const val baseUrl = "http://192.168.1.78/api/${BuildConfig.HueUsername}/"
 
     private val client = OkHttpClient.Builder()
         .addInterceptor {
