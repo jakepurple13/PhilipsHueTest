@@ -59,7 +59,11 @@ class ControlService : ControlsProviderService() {
             .setTitle("${value.name}") //required
             .setSubtitle("Slider") //required
             .setStatus(Control.STATUS_OK) //required
-            .setStructure("Living Room") //optional
+            .setStructure("Living Room") //optional - most used for room location
+            //.setCustomColor() //optional
+            //.setCustomIcon()  //optional
+            //.setStatusText()  //optional
+            //.setZone() //optional
             .setControlTemplate(
                 ToggleRangeTemplate(
                     "brightness",
@@ -70,7 +74,7 @@ class ControlService : ControlsProviderService() {
                         100f,
                         value.state?.bri?.toFloat()?.times(100f)?.div(254f) ?: 0f,
                         5f,
-                        null
+                        "• %.0f%%"
                     )
                 )
             )
@@ -154,7 +158,7 @@ class ControlService : ControlsProviderService() {
                                     100f,
                                     50f, //This can either be pre-saved or set to min or max when its turned off or on
                                     5f,
-                                    null
+                                    "• %.0f%%"
                                 )
                             )
                         )
@@ -162,7 +166,9 @@ class ControlService : ControlsProviderService() {
                 )
             }
             is FloatAction -> {
-                GlobalScope.launch { fit.turnOn(controlId.toInt(), BridgeLightRequestBody(true, bri = (action.newValue.toInt() * 254) / 100)) }
+                GlobalScope.launch {
+                    fit.turnOn(controlId.toInt(), BridgeLightRequestBody(true, bri = (action.newValue.toInt() * 254) / 100))
+                }
                 updatePublisher.onNext(
                     Control.StatefulBuilder(
                         controlId, //unique id
@@ -183,7 +189,7 @@ class ControlService : ControlsProviderService() {
                                     100f,
                                     action.newValue,
                                     5f,
-                                    null
+                                    "• %.0f%%"
                                 )
                             )
                         )
