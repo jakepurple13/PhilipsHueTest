@@ -151,7 +151,7 @@ class ControlService : ControlsProviderService() {
                                 RangeTemplate(
                                     "range",
                                     0f,
-                                    255f,
+                                    100f,
                                     50f, //This can either be pre-saved or set to min or max when its turned off or on
                                     5f,
                                     null
