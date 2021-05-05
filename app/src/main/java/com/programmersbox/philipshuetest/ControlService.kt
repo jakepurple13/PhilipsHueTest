@@ -1,9 +1,7 @@
 package com.programmersbox.philipshuetest
 
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.service.controls.Control
 import android.service.controls.ControlsProviderService
 import android.service.controls.DeviceTypes
@@ -13,13 +11,10 @@ import android.service.controls.actions.FloatAction
 import android.service.controls.templates.ControlButton
 import android.service.controls.templates.RangeTemplate
 import android.service.controls.templates.ToggleRangeTemplate
-import android.util.Log
-import androidx.annotation.RequiresApi
 import com.programmersbox.loggingutils.Loged
-import io.reactivex.BackpressureStrategy
-import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.rxkotlin.Flowables
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.processors.ReplayProcessor
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -29,6 +24,10 @@ import java.util.function.Consumer
 import kotlin.random.Random
 
 class ControlService : ControlsProviderService() {
+
+    private val disposable = CompositeDisposable()
+
+    private lateinit var updatePublisher: ReplayProcessor<Control>
 
     /*
     This won't do things in real time. If another phone controls the device,
@@ -45,6 +44,7 @@ class ControlService : ControlsProviderService() {
         PendingIntent.getActivity(
             baseContext,
             Random.nextInt(0, 100),
+            //put any data into here OR! If using navigation component, we can use the pending intent for that
             Intent(baseContext, MainActivity::class.java),
             PendingIntent.FLAG_CANCEL_CURRENT
         )
@@ -52,20 +52,26 @@ class ControlService : ControlsProviderService() {
 
     private fun Map.Entry<String, Light>.toStateful(): Control {
         return Control.StatefulBuilder(
-            key,
-            bottomSheet
+            key, //unique id
+            bottomSheet //what opens when press and held
         )
-            .setDeviceType(DeviceTypes.TYPE_LIGHT)
-            .setTitle("${value.name}")
-            .setSubtitle("Slider")
-            .setStatus(Control.STATUS_OK)
-            .setStructure("Living Room")
-            //.setControlId(it.key)
+            .setDeviceType(DeviceTypes.TYPE_LIGHT) //required
+            .setTitle("${value.name}") //required
+            .setSubtitle("Slider") //required
+            .setStatus(Control.STATUS_OK) //required
+            .setStructure("Living Room") //optional
             .setControlTemplate(
                 ToggleRangeTemplate(
                     "brightness",
                     ControlButton(value.state?.on ?: false, "brightness-${key}"),
-                    RangeTemplate("range", 0f, 255f, value.state?.bri?.toFloat() ?: 0f, 5f, null)
+                    RangeTemplate(
+                        "range",
+                        0f,
+                        100f,
+                        value.state?.bri?.toFloat()?.times(100f)?.div(254f) ?: 0f,
+                        5f,
+                        null
+                    )
                 )
             )
             .build()
@@ -73,12 +79,12 @@ class ControlService : ControlsProviderService() {
 
     private fun Map.Entry<String, Light>.toStateless(): Control {
         return Control.StatelessBuilder(
-            key,
-            bottomSheet
+            key, //unique id
+            bottomSheet //what opens when press and held
         )
-            .setDeviceType(DeviceTypes.TYPE_LIGHT)
-            .setTitle("${value.name}")
-            .setSubtitle("Slider")
+            .setDeviceType(DeviceTypes.TYPE_LIGHT) //required
+            .setTitle("${value.name}") //required
+            .setSubtitle("Slider") //required
             .build()
     }
 
@@ -86,6 +92,7 @@ class ControlService : ControlsProviderService() {
 
     override fun createPublisherForAllAvailable(): Flow.Publisher<Control> {
         //This is for lazy loading. Get all devices but don't allow control
+        //this is just for choosing what to be able to control
         return FlowAdapters.toFlowPublisher(
             fit.getLightsRx()
                 .subscribeOn(Schedulers.computation())
@@ -95,16 +102,30 @@ class ControlService : ControlsProviderService() {
         )
     }
 
+    private fun Control.string(): String {
+        val hc = String.format("0x%08x", hashCode())
+        return ("Control($hc id=${controlId}, type=${deviceType}, " +
+                "title=${title}, template=${controlTemplate})")
+    }
+
     override fun createPublisherFor(controlIds: MutableList<String>): Flow.Publisher<Control> {
+        ///the controlIds are what the user has chosen to be viewed
+
+        updatePublisher = ReplayProcessor.create()
+
         //This is once everything is loaded and all information is obtained.
-        return FlowAdapters.toFlowPublisher(
+        disposable.add(
             fit.getLightsRx()
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
                 .map { it.entries.map { it.toStateful() } }
                 .flattenAsFlowable { it }
                 .filter { controlIds.contains(it.controlId) }
+                .subscribe { updatePublisher.onNext(it) }
         )
+
+        //return the updatePublisher that will listen to any updates
+        return FlowAdapters.toFlowPublisher(updatePublisher)
     }
 
     override fun performControlAction(controlId: String, action: ControlAction, consumer: Consumer<Int>) {
@@ -113,8 +134,64 @@ class ControlService : ControlsProviderService() {
         when (action) {
             is BooleanAction -> {
                 GlobalScope.launch { fit.turnOn(controlId.toInt(), BridgeLightRequestBody(action.newState)) }
+                updatePublisher.onNext(
+                    Control.StatefulBuilder(
+                        controlId, //unique id
+                        bottomSheet //what opens when press and held
+                    )
+                        .setDeviceType(DeviceTypes.TYPE_LIGHT) //required
+                        .setTitle("${updatePublisher.filter { it.controlId == controlId }.blockingFirst().title}") //required
+                        .setSubtitle("Slider") //required
+                        .setStatus(Control.STATUS_OK) //required
+                        .setStructure("Living Room") //optional
+                        .setControlTemplate(
+                            ToggleRangeTemplate(
+                                "brightness",
+                                ControlButton(action.newState, "brightness-${controlId}"),
+                                RangeTemplate(
+                                    "range",
+                                    0f,
+                                    255f,
+                                    50f, //This can either be pre-saved or set to min or max when its turned off or on
+                                    5f,
+                                    null
+                                )
+                            )
+                        )
+                        .build()
+                )
+            }
+            is FloatAction -> {
+                GlobalScope.launch { fit.turnOn(controlId.toInt(), BridgeLightRequestBody(true, bri = (action.newValue.toInt() * 254) / 100)) }
+                updatePublisher.onNext(
+                    Control.StatefulBuilder(
+                        controlId, //unique id
+                        bottomSheet //what opens when press and held
+                    )
+                        .setDeviceType(DeviceTypes.TYPE_LIGHT) //required
+                        .setTitle("${updatePublisher.filter { it.controlId == controlId }.blockingFirst().title}") //required
+                        .setSubtitle("Slider") //required
+                        .setStatus(Control.STATUS_OK) //required
+                        .setStructure("Living Room") //optional
+                        .setControlTemplate(
+                            ToggleRangeTemplate(
+                                "brightness",
+                                ControlButton(true, "brightness-${controlId}"),
+                                RangeTemplate(
+                                    "range",
+                                    0f,
+                                    100f,
+                                    action.newValue,
+                                    5f,
+                                    null
+                                )
+                            )
+                        )
+                        .build()
+                )
             }
         }
+        //only accept ok if an action went through
         consumer.accept(ControlAction.RESPONSE_OK)
     }
 

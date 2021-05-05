@@ -2,39 +2,31 @@ package com.programmersbox.philipshuetest
 
 import android.Manifest
 import android.content.Context
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.RecyclerView
 import com.polidea.rxandroidble2.RxBleClient
 import com.polidea.rxandroidble2.scan.ScanSettings
-import com.programmersbox.dragswipe.CheckAdapter
-import com.programmersbox.dragswipe.CheckAdapterInterface
 import com.programmersbox.dragswipe.DragSwipeAdapter
 import com.programmersbox.dragswipe.iterator
 import com.programmersbox.flowutils.collectOnUi
 import com.programmersbox.helpfulutils.animateChildren
 import com.programmersbox.helpfulutils.layoutInflater
 import com.programmersbox.helpfulutils.requestPermissions
-import com.programmersbox.helpfulutils.wifiManager
 import com.programmersbox.loggingutils.Loged
-import com.programmersbox.loggingutils.fa
 import com.programmersbox.philipshuetest.databinding.ActivityMainBinding
 import com.programmersbox.philipshuetest.databinding.LightItemBinding
-import dev.bluefalcon.ApplicationContext
-import dev.bluefalcon.BlueFalcon
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ticker
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
 typealias Lights = Pair<String, Light>
@@ -53,6 +45,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        Loged.FILTER_BY_PACKAGE_NAME = "philipshuetest"
 
         binding.lightList.adapter = adapter
 
