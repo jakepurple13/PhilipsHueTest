@@ -2,6 +2,8 @@ package com.programmersbox.philipshuetest
 
 import androidx.annotation.IntRange
 import com.programmersbox.thirdpartyutils.gsonConverter
+import com.programmersbox.thirdpartyutils.rx2FactoryAsync
+import io.reactivex.Single
 import okhttp3.OkHttpClient
 import retrofit2.Call
 import retrofit2.Retrofit
@@ -25,6 +27,7 @@ object HueFit {
         .baseUrl(baseUrl)
         .client(client)
         .gsonConverter()
+        .rx2FactoryAsync()
         .build()
         .create()
 }
@@ -34,9 +37,14 @@ interface HueService {
     @GET("lights")
     fun getLights(): Call<Map<String, Light>>
 
+    @GET("lights/{lightId}")
+    fun getLight(@Path("lightId") lightId: Int): Call<Light>
+
     @PUT("lights/{lightId}/state")
     suspend fun turnOn(@Path("lightId") lightId: Int, @Body bridgeLightRequestBody: BridgeLightRequestBody)
 
+    @GET("lights")
+    fun getLightsRx(): Single<Map<String, Light>>
 }
 
 data class Light(

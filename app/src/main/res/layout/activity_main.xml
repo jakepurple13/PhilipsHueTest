@@ -6,17 +6,28 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/toggleAll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textOff="Toggle On"
+        android:textOn="Toggle Off"
+        android:text="Toggle All"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/refreshLights"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toggleAll">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/lightList"
             android:layout_width="match_parent"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            android:orientation="vertical"
             android:layout_height="match_parent"
+            android:orientation="vertical"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:listitem="@layout/light_item" />
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
