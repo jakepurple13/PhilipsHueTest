@@ -201,4 +201,9 @@ class ControlService : ControlsProviderService() {
         consumer.accept(ControlAction.RESPONSE_OK)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        disposable.dispose()
+    }
+
 }
